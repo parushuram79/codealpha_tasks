@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LinguaBridge — Offline Language Translation</title>
+<style>
+/* ── Reset & Variables ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#ffffff;--bg2:#f7f7f5;--bg3:#efefec;
+  --text:#1a1a1a;--text2:#555550;--text3:#99998f;
+  --border:#e0e0d8;--border2:#c8c8c0;
+  --accent:#1a1a2e;--accent2:#2d2d4e;
+  --green:#22c55e;--red:#dc2626;
+  --radius:10px;--shadow:0 4px 24px rgba(0,0,0,.07);
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg3);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+/* ── Layout ── */
+.wrapper{width:100%;max-width:880px}
+.page-title{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.logo{width:44px;height:44px;background:var(--accent);border-radius:11px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;font-style:italic;font-family:Georgia,serif}
+h1{font-size:26px;font-weight:700;color:var(--text)}
+.sub{font-size:13px;color:var(--text3);margin-bottom:20px;margin-left:56px}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
+/* ── Lang Bar ── */
+.lang-bar{display:flex;align-items:center;gap:10px;padding:14px 22px;border-bottom:1px solid var(--border);background:var(--bg2)}
+select{flex:1;padding:9px 14px;border:1px solid var(--border2);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text);cursor:pointer;outline:none}
+.swap-btn{width:38px;height:38px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;transition:background .15s}
+.swap-btn:hover{background:var(--bg3)}
+/* ── Panels ── */
+.panels{display:grid;grid-template-columns:1fr 1fr}
+.panel{padding:18px 22px;position:relative}
+.panel-left{border-right:1px solid var(--border)}
+.panel-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+textarea{width:100%;height:190px;border:none;outline:none;resize:none;font-size:15px;line-height:1.65;color:var(--text);background:transparent;font-family:inherit}
+textarea::placeholder{color:var(--text3)}
+.result-box{font-size:15px;line-height:1.65;color:var(--text);min-height:190px;white-space:pre-wrap;word-break:break-word}
+.result-placeholder{color:var(--text3);min-height:190px;font-size:15px}
+.panel-actions{position:absolute;top:18px;right:18px;display:flex;gap:6px}
+.icon-btn{width:30px;height:30px;border:1px solid var(--border);border-radius:7px;background:var(--bg);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:background .14s}
+.icon-btn:hover{background:var(--bg2)}
+/* ── Bottom Bar ── */
+.bottom-bar{padding:12px 22px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg2);flex-wrap:wrap;gap:10px}
+.char-count{font-size:12px;color:var(--text3)}
+.btn-row{display:flex;gap:8px}
+.btn{padding:8px 20px;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border2);transition:all .15s;font-family:inherit}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:var(--accent2)}
+.btn-secondary{background:var(--bg);color:var(--text)}
+.btn-secondary:hover{background:var(--bg3)}
+/* ── Status ── */
+.status-bar{padding:9px 22px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0}
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:10px 20px;border-radius:var(--radius);font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.toast.show{opacity:1}
+/* ── Phrasebook Panel ── */
+.phrase-section{padding:14px 22px;border-top:1px solid var(--border);background:var(--bg2)}
+.phrase-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.phrase-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:7px}
+.phrase-btn{padding:7px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;background:var(--bg);color:var(--text2);transition:all .14s;text-align:left;line-height:1.4;font-family:inherit}
+.phrase-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+/* ── Dictionary note ── */
+.dict-note{font-size:11px;color:var(--text3);padding:8px 22px;border-top:1px solid var(--border);font-style:italic}
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="page-title"><div class="logo">Tr</div><h1>LinguaBridge</h1></div>
+  <p class="sub">100% Offline Language Translation Tool — CodeAlpha Task 1</p>
+
+  <div class="card">
+    <div class="lang-bar">
+      <select id="srcLang">
+        <option value="en" selected>English</option>
+        <option value="es">Spanish</option>
+        <option value="fr">French</option>
+        <option value="de">German</option>
+        <option value="it">Italian</option>
+        <option value="pt">Portuguese</option>
+        <option value="hi">Hindi</option>
+        <option value="te">Telugu</option>
+        <option value="ar">Arabic</option>
+        <option value="ru">Russian</option>
+        <option value="ja">Japanese</option>
+        <option value="zh">Chinese</option>
+      </select>
+      <button class="swap-btn" id="swapBtn" title="Swap languages">⇄</button>
+      <select id="tgtLang">
+        <option value="es" selected>Spanish</option>
+        <option value="en">English</option>
+        <option value="fr">French</option>
+        <option value="de">German</option>
+        <option value="it">Italian</option>
+        <option value="pt">Portuguese</option>
+        <option value="hi">Hindi</option>
+        <option value="te">Telugu</option>
+        <option value="ar">Arabic</option>
+        <option value="ru">Russian</option>
+        <option value="ja">Japanese</option>
+        <option value="zh">Chinese</option>
+      </select>
+    </div>
+
+    <div class="panels">
+      <div class="panel panel-left">
+        <div class="panel-label">Source Text</div>
+        <textarea id="src" placeholder="Enter text to translate…&#10;&#10;Try: Hello, how are you? Good morning. Thank you." maxlength="2000"></textarea>
+      </div>
+      <div class="panel panel-right">
+        <div class="panel-label">Translation</div>
+        <div class="panel-actions">
+          <button class="icon-btn" id="copyBtn" title="Copy">📋</button>
+          <button class="icon-btn" id="speakBtn" title="Read aloud">🔊</button>
+        </div>
+        <div id="resultArea"><div class="result-placeholder">Translation will appear here…</div></div>
+      </div>
+    </div>
+
+    <div class="phrase-section">
+      <div class="phrase-title">Quick Phrases (click to translate)</div>
+      <div class="phrase-grid" id="phraseGrid"></div>
+    </div>
+
+    <div class="bottom-bar">
+      <span class="char-count" id="charCount">0 / 2000</span>
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="clearBtn">Clear</button>
+        <button class="btn btn-primary" id="transBtn">Translate →</button>
+      </div>
+    </div>
+    <div class="status-bar"><div class="dot"></div><span id="status">Ready · Ctrl+Enter to translate</span></div>
+    <div class="dict-note" id="dictNote">Built-in dictionary · 500+ phrase translations · Works 100% offline</div>
+  </div>
+</div>
+<div class="toast" id="toast">✓ Copied!</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// OFFLINE TRANSLATION ENGINE
+// Built-in bilingual dictionary + sentence tokenizer
+// ════════════════════════════════════════════════════════════
+
+const LANG_NAMES = {
+  en:'English',es:'Spanish',fr:'French',de:'German',it:'Italian',
+  pt:'Portuguese',hi:'Hindi',te:'Telugu',ar:'Arabic',
+  ru:'Russian',ja:'Japanese',zh:'Chinese (Simplified)'
+};
+
+// ── Master dictionary: en → every language ──────────────────
+// Format: word/phrase → {lang: translation}
+const DICT = {
+  // Greetings
+  "hello":        {es:"hola",fr:"bonjour",de:"hallo",it:"ciao",pt:"olá",hi:"नमस्ते",te:"హలో",ar:"مرحبا",ru:"привет",ja:"こんにちは",zh:"你好"},
+  "hi":           {es:"hola",fr:"salut",de:"hallo",it:"ciao",pt:"oi",hi:"हाय",te:"హాయ్",ar:"مرحبا",ru:"привет",ja:"やあ",zh:"嗨"},
+  "good morning": {es:"buenos días",fr:"bonjour",de:"guten morgen",it:"buongiorno",pt:"bom dia",hi:"सुप्रभात",te:"శుభోదయం",ar:"صباح الخير",ru:"доброе утро",ja:"おはようございます",zh:"早上好"},
+  "good afternoon":{es:"buenas tardes",fr:"bon après-midi",de:"guten tag",it:"buon pomeriggio",pt:"boa tarde",hi:"शुभ दोपहर",te:"శుభ మధ్యాహ్నం",ar:"مساء الخير",ru:"добрый день",ja:"こんにちは",zh:"下午好"},
+  "good evening": {es:"buenas noches",fr:"bonsoir",de:"guten abend",it:"buonasera",pt:"boa noite",hi:"शुभ संध्या",te:"శుభ సాయంత్రం",ar:"مساء الخير",ru:"добрый вечер",ja:"こんばんは",zh:"晚上好"},
+  "good night":   {es:"buenas noches",fr:"bonne nuit",de:"gute nacht",it:"buonanotte",pt:"boa noite",hi:"शुभ रात्रि",te:"శుభ రాత్రి",ar:"تصبح على خير",ru:"спокойной ночи",ja:"おやすみなさい",zh:"晚安"},
+  "goodbye":      {es:"adiós",fr:"au revoir",de:"auf wiedersehen",it:"arrivederci",pt:"adeus",hi:"अलविदा",te:"వీడ్కోలు",ar:"وداعا",ru:"до свидания",ja:"さようなら",zh:"再见"},
+  "bye":          {es:"chao",fr:"ciao",de:"tschüss",it:"ciao",pt:"tchau",hi:"बाय",te:"బై",ar:"باي",ru:"пока",ja:"じゃあね",zh:"拜拜"},
+  "see you later":{es:"hasta luego",fr:"à plus tard",de:"bis später",it:"a dopo",pt:"até logo",hi:"बाद में मिलते हैं",te:"తర్వాత కలుద్దాం",ar:"أراك لاحقاً",ru:"до встречи",ja:"またね",zh:"回头见"},
+  "welcome":      {es:"bienvenido",fr:"bienvenue",de:"willkommen",it:"benvenuto",pt:"bem-vindo",hi:"स्वागत है",te:"స్వాగతం",ar:"أهلا وسهلا",ru:"добро пожаловать",ja:"ようこそ",zh:"欢迎"},
+  // Courtesies
+  "thank you":    {es:"gracias",fr:"merci",de:"danke",it:"grazie",pt:"obrigado",hi:"धन्यवाद",te:"ధన్యవాదాలు",ar:"شكراً",ru:"спасибо",ja:"ありがとう",zh:"谢谢"},
+  "thanks":       {es:"gracias",fr:"merci",de:"danke",it:"grazie",pt:"obrigado",hi:"शुक्रिया",te:"థాంక్స్",ar:"شكرا",ru:"спасибо",ja:"ありがとう",zh:"谢谢"},
+  "please":       {es:"por favor",fr:"s'il vous plaît",de:"bitte",it:"per favore",pt:"por favor",hi:"कृपया",te:"దయచేసి",ar:"من فضلك",ru:"пожалуйста",ja:"ください",zh:"请"},
+  "sorry":        {es:"lo siento",fr:"désolé",de:"entschuldigung",it:"mi dispiace",pt:"desculpe",hi:"माफ़ करें",te:"క్షమించండి",ar:"آسف",ru:"извините",ja:"すみません",zh:"对不起"},
+  "excuse me":    {es:"perdón",fr:"excusez-moi",de:"entschuldigung",it:"scusi",pt:"com licença",hi:"माफ कीजिए",te:"క్షమించండి",ar:"المعذرة",ru:"простите",ja:"すみません",zh:"打扰一下"},
+  "you're welcome":{es:"de nada",fr:"de rien",de:"bitte sehr",it:"prego",pt:"de nada",hi:"कोई बात नहीं",te:"పర్వాలేదు",ar:"عفواً",ru:"пожалуйста",ja:"どういたしまして",zh:"不客气"},
+  "no problem":   {es:"no hay problema",fr:"pas de problème",de:"kein problem",it:"nessun problema",pt:"sem problema",hi:"कोई समस्या नहीं",te:"సమస్య లేదు",ar:"لا مشكلة",ru:"нет проблем",ja:"問題ない",zh:"没问题"},
+  // Common questions
+  "how are you":  {es:"¿cómo estás?",fr:"comment allez-vous?",de:"wie geht es ihnen?",it:"come stai?",pt:"como vai você?",hi:"आप कैसे हैं?",te:"మీరు ఎలా ఉన్నారు?",ar:"كيف حالك؟",ru:"как вы?",ja:"お元気ですか?",zh:"你好吗?"},
+  "how are you?": {es:"¿cómo estás?",fr:"comment allez-vous?",de:"wie geht es ihnen?",it:"come stai?",pt:"como vai você?",hi:"आप कैसे हैं?",te:"మీరు ఎలా ఉన్నారు?",ar:"كيف حالك؟",ru:"как вы?",ja:"お元気ですか?",zh:"你好吗?"},
+  "what is your name":{es:"¿cómo te llamas?",fr:"comment vous appelez-vous?",de:"wie heißen sie?",it:"come ti chiami?",pt:"qual é o seu nome?",hi:"आपका नाम क्या है?",te:"మీ పేరు ఏమిటి?",ar:"ما اسمك؟",ru:"как вас зовут?",ja:"お名前は？",zh:"你叫什么名字?"},
+  "my name is":   {es:"mi nombre es",fr:"je m'appelle",de:"mein name ist",it:"mi chiamo",pt:"meu nome é",hi:"मेरा नाम है",te:"నా పేరు",ar:"اسمي",ru:"меня зовут",ja:"私の名前は",zh:"我的名字是"},
+  "where are you from":{es:"¿de dónde eres?",fr:"d'où venez-vous?",de:"woher kommen sie?",it:"di dove sei?",pt:"de onde você é?",hi:"आप कहाँ से हैं?",te:"మీరు ఎక్కడ నుండి?",ar:"من أين أنت؟",ru:"откуда вы?",ja:"どこから来ましたか?",zh:"你从哪里来?"},
+  "i am from":    {es:"soy de",fr:"je viens de",de:"ich komme aus",it:"vengo da",pt:"eu sou de",hi:"मैं ... से हूँ",te:"నేను ... నుండి",ar:"أنا من",ru:"я из",ja:"私は...から来ました",zh:"我来自"},
+  "i don't understand":{es:"no entiendo",fr:"je ne comprends pas",de:"ich verstehe nicht",it:"non capisco",pt:"não entendo",hi:"मैं नहीं समझता",te:"నాకు అర్థం కాలేదు",ar:"لا أفهم",ru:"я не понимаю",ja:"わかりません",zh:"我不明白"},
+  "do you speak english":{es:"¿hablas inglés?",fr:"parlez-vous anglais?",de:"sprechen sie englisch?",it:"parli inglese?",pt:"você fala inglês?",hi:"क्या आप अंग्रेजी बोलते हैं?",te:"మీరు ఇంగ్లీషు మాట్లాడతారా?",ar:"هل تتحدث الإنجليزية؟",ru:"вы говорите по-английски?",ja:"英語を話しますか?",zh:"你会说英语吗?"},
+  "yes":          {es:"sí",fr:"oui",de:"ja",it:"sì",pt:"sim",hi:"हाँ",te:"అవును",ar:"نعم",ru:"да",ja:"はい",zh:"是"},
+  "no":           {es:"no",fr:"non",de:"nein",it:"no",pt:"não",hi:"नहीं",te:"లేదు",ar:"لا",ru:"нет",ja:"いいえ",zh:"不"},
+  "maybe":        {es:"quizás",fr:"peut-être",de:"vielleicht",it:"forse",pt:"talvez",hi:"शायद",te:"బహుశా",ar:"ربما",ru:"может быть",ja:"たぶん",zh:"也许"},
+  // Numbers
+  "one":    {es:"uno",fr:"un",de:"ein",it:"uno",pt:"um",hi:"एक",te:"ఒకటి",ar:"واحد",ru:"один",ja:"一",zh:"一"},
+  "two":    {es:"dos",fr:"deux",de:"zwei",it:"due",pt:"dois",hi:"दो",te:"రెండు",ar:"اثنان",ru:"два",ja:"二",zh:"二"},
+  "three":  {es:"tres",fr:"trois",de:"drei",it:"tre",pt:"três",hi:"तीन",te:"మూడు",ar:"ثلاثة",ru:"три",ja:"三",zh:"三"},
+  "four":   {es:"cuatro",fr:"quatre",de:"vier",it:"quattro",pt:"quatro",hi:"चार",te:"నాలుగు",ar:"أربعة",ru:"четыре",ja:"四",zh:"四"},
+  "five":   {es:"cinco",fr:"cinq",de:"fünf",it:"cinque",pt:"cinco",hi:"पाँच",te:"అయిదు",ar:"خمسة",ru:"пять",ja:"五",zh:"五"},
+  "ten":    {es:"diez",fr:"dix",de:"zehn",it:"dieci",pt:"dez",hi:"दस",te:"పది",ar:"عشرة",ru:"десять",ja:"十",zh:"十"},
+  "hundred":{es:"cien",fr:"cent",de:"hundert",it:"cento",pt:"cem",hi:"सौ",te:"వంద",ar:"مائة",ru:"сто",ja:"百",zh:"百"},
+  // Days
+  "monday":   {es:"lunes",fr:"lundi",de:"montag",it:"lunedì",pt:"segunda-feira",hi:"सोमवार",te:"సోమవారం",ar:"الاثنين",ru:"понедельник",ja:"月曜日",zh:"星期一"},
+  "tuesday":  {es:"martes",fr:"mardi",de:"dienstag",it:"martedì",pt:"terça-feira",hi:"मंगलवार",te:"మంగళవారం",ar:"الثلاثاء",ru:"вторник",ja:"火曜日",zh:"星期二"},
+  "wednesday":{es:"miércoles",fr:"mercredi",de:"mittwoch",it:"mercoledì",pt:"quarta-feira",hi:"बुधवार",te:"బుధవారం",ar:"الأربعاء",ru:"среда",ja:"水曜日",zh:"星期三"},
+  "thursday": {es:"jueves",fr:"jeudi",de:"donnerstag",it:"giovedì",pt:"quinta-feira",hi:"गुरुवार",te:"గురువారం",ar:"الخميس",ru:"четверг",ja:"木曜日",zh:"星期四"},
+  "friday":   {es:"viernes",fr:"vendredi",de:"freitag",it:"venerdì",pt:"sexta-feira",hi:"शुक्रवार",te:"శుక్రవారం",ar:"الجمعة",ru:"пятница",ja:"金曜日",zh:"星期五"},
+  "saturday": {es:"sábado",fr:"samedi",de:"samstag",it:"sabato",pt:"sábado",hi:"शनिवार",te:"శనివారం",ar:"السبت",ru:"суббота",ja:"土曜日",zh:"星期六"},
+  "sunday":   {es:"domingo",fr:"dimanche",de:"sonntag",it:"domenica",pt:"domingo",hi:"रविवार",te:"ఆదివారం",ar:"الأحد",ru:"воскресенье",ja:"日曜日",zh:"星期日"},
+  // Time
+  "today":     {es:"hoy",fr:"aujourd'hui",de:"heute",it:"oggi",pt:"hoje",hi:"आज",te:"ఈరోజు",ar:"اليوم",ru:"сегодня",ja:"今日",zh:"今天"},
+  "tomorrow":  {es:"mañana",fr:"demain",de:"morgen",it:"domani",pt:"amanhã",hi:"कल",te:"రేపు",ar:"غداً",ru:"завтра",ja:"明日",zh:"明天"},
+  "yesterday": {es:"ayer",fr:"hier",de:"gestern",it:"ieri",pt:"ontem",hi:"कल",te:"నిన్న",ar:"أمس",ru:"вчера",ja:"昨日",zh:"昨天"},
+  "now":       {es:"ahora",fr:"maintenant",de:"jetzt",it:"adesso",pt:"agora",hi:"अभी",te:"ఇప్పుడు",ar:"الآن",ru:"сейчас",ja:"今",zh:"现在"},
+  "later":     {es:"después",fr:"plus tard",de:"später",it:"dopo",pt:"depois",hi:"बाद में",te:"తర్వాత",ar:"لاحقاً",ru:"позже",ja:"後で",zh:"以后"},
+  "morning":   {es:"mañana",fr:"matin",de:"morgen",it:"mattina",pt:"manhã",hi:"सुबह",te:"ఉదయం",ar:"الصباح",ru:"утро",ja:"朝",zh:"早上"},
+  "afternoon": {es:"tarde",fr:"après-midi",de:"nachmittag",it:"pomeriggio",pt:"tarde",hi:"दोपहर",te:"మధ్యాహ్నం",ar:"بعد الظهر",ru:"день",ja:"午後",zh:"下午"},
+  "evening":   {es:"tarde",fr:"soirée",de:"abend",it:"sera",pt:"noite",hi:"शाम",te:"సాయంత్రం",ar:"المساء",ru:"вечер",ja:"夕方",zh:"傍晚"},
+  "night":     {es:"noche",fr:"nuit",de:"nacht",it:"notte",pt:"noite",hi:"रात",te:"రాత్రి",ar:"الليل",ru:"ночь",ja:"夜",zh:"晚上"},
+  // Common words
+  "water":     {es:"agua",fr:"eau",de:"wasser",it:"acqua",pt:"água",hi:"पानी",te:"నీరు",ar:"ماء",ru:"вода",ja:"水",zh:"水"},
+  "food":      {es:"comida",fr:"nourriture",de:"essen",it:"cibo",pt:"comida",hi:"खाना",te:"ఆహారం",ar:"طعام",ru:"еда",ja:"食べ物",zh:"食物"},
+  "house":     {es:"casa",fr:"maison",de:"haus",it:"casa",pt:"casa",hi:"घर",te:"ఇల్లు",ar:"بيت",ru:"дом",ja:"家",zh:"房子"},
+  "school":    {es:"escuela",fr:"école",de:"schule",it:"scuola",pt:"escola",hi:"स्कूल",te:"పాఠశాల",ar:"مدرسة",ru:"школа",ja:"学校",zh:"学校"},
+  "work":      {es:"trabajo",fr:"travail",de:"arbeit",it:"lavoro",pt:"trabalho",hi:"काम",te:"పని",ar:"عمل",ru:"работа",ja:"仕事",zh:"工作"},
+  "love":      {es:"amor",fr:"amour",de:"liebe",it:"amore",pt:"amor",hi:"प्यार",te:"ప్రేమ",ar:"حب",ru:"любовь",ja:"愛",zh:"爱"},
+  "family":    {es:"familia",fr:"famille",de:"familie",it:"famiglia",pt:"família",hi:"परिवार",te:"కుటుంబం",ar:"عائلة",ru:"семья",ja:"家族",zh:"家庭"},
+  "friend":    {es:"amigo",fr:"ami",de:"freund",it:"amico",pt:"amigo",hi:"दोस्त",te:"స్నేహితుడు",ar:"صديق",ru:"друг",ja:"友達",zh:"朋友"},
+  "money":     {es:"dinero",fr:"argent",de:"geld",it:"soldi",pt:"dinheiro",hi:"पैसे",te:"డబ్బు",ar:"مال",ru:"деньги",ja:"お金",zh:"钱"},
+  "time":      {es:"tiempo",fr:"temps",de:"zeit",it:"tempo",pt:"tempo",hi:"समय",te:"సమయం",ar:"وقت",ru:"время",ja:"時間",zh:"时间"},
+  "day":       {es:"día",fr:"jour",de:"tag",it:"giorno",pt:"dia",hi:"दिन",te:"రోజు",ar:"يوم",ru:"день",ja:"日",zh:"天"},
+  "year":      {es:"año",fr:"an",de:"jahr",it:"anno",pt:"ano",hi:"साल",te:"సంవత్సరం",ar:"سنة",ru:"год",ja:"年",zh:"年"},
+  "city":      {es:"ciudad",fr:"ville",de:"stadt",it:"città",pt:"cidade",hi:"शहर",te:"నగరం",ar:"مدينة",ru:"город",ja:"市",zh:"城市"},
+  "country":   {es:"país",fr:"pays",de:"land",it:"paese",pt:"país",hi:"देश",te:"దేశం",ar:"بلد",ru:"страна",ja:"国",zh:"国家"},
+  "book":      {es:"libro",fr:"livre",de:"buch",it:"libro",pt:"livro",hi:"किताब",te:"పుస్తకం",ar:"كتاب",ru:"книга",ja:"本",zh:"书"},
+  "computer":  {es:"computadora",fr:"ordinateur",de:"computer",it:"computer",pt:"computador",hi:"कंप्यूटर",te:"కంప్యూటర్",ar:"حاسوب",ru:"компьютер",ja:"コンピュータ",zh:"电脑"},
+  "phone":     {es:"teléfono",fr:"téléphone",de:"telefon",it:"telefono",pt:"telefone",hi:"फोन",te:"ఫోన్",ar:"هاتف",ru:"телефон",ja:"電話",zh:"电话"},
+  "car":       {es:"coche",fr:"voiture",de:"auto",it:"macchina",pt:"carro",hi:"कार",te:"కారు",ar:"سيارة",ru:"машина",ja:"車",zh:"汽车"},
+  "road":      {es:"carretera",fr:"route",de:"straße",it:"strada",pt:"estrada",hi:"सड़क",te:"రోడ్డు",ar:"طريق",ru:"дорога",ja:"道",zh:"路"},
+  "doctor":    {es:"médico",fr:"médecin",de:"arzt",it:"dottore",pt:"médico",hi:"डॉक्टर",te:"డాక్టర్",ar:"طبيب",ru:"врач",ja:"医者",zh:"医生"},
+  "hospital":  {es:"hospital",fr:"hôpital",de:"krankenhaus",it:"ospedale",pt:"hospital",hi:"अस्पताल",te:"ఆసుపత్రి",ar:"مستشفى",ru:"больница",ja:"病院",zh:"医院"},
+  "help":      {es:"ayuda",fr:"aide",de:"hilfe",it:"aiuto",pt:"ajuda",hi:"मदद",te:"సహాయం",ar:"مساعدة",ru:"помощь",ja:"助けて",zh:"帮助"},
+  "i need help":{es:"necesito ayuda",fr:"j'ai besoin d'aide",de:"ich brauche hilfe",it:"ho bisogno di aiuto",pt:"preciso de ajuda",hi:"मुझे मदद चाहिए",te:"నాకు సహాయం కావాలి",ar:"أحتاج مساعدة",ru:"мне нужна помощь",ja:"助けが必要です",zh:"我需要帮助"},
+  "where is":  {es:"¿dónde está",fr:"où est",de:"wo ist",it:"dov'è",pt:"onde fica",hi:"... कहाँ है",te:"... ఎక్కడ ఉంది",ar:"أين يوجد",ru:"где находится",ja:"どこですか",zh:"在哪里"},
+  "how much":  {es:"¿cuánto cuesta?",fr:"combien ça coûte?",de:"wie viel kostet das?",it:"quanto costa?",pt:"quanto custa?",hi:"कितना है?",te:"ఎంత?",ar:"كم الثمن؟",ru:"сколько стоит?",ja:"いくらですか?",zh:"多少钱?"},
+  "i love you":{es:"te amo",fr:"je t'aime",de:"ich liebe dich",it:"ti amo",pt:"eu te amo",hi:"मैं तुमसे प्यार करता हूँ",te:"నేను నిన్ను ప్రేమిస్తున్నాను",ar:"أحبك",ru:"я тебя люблю",ja:"愛してる",zh:"我爱你"},
+  "happy birthday":{es:"feliz cumpleaños",fr:"joyeux anniversaire",de:"alles gute zum geburtstag",it:"buon compleanno",pt:"feliz aniversário",hi:"जन्मदिन मुबारक",te:"జన్మదిన శుభాకాంక్షలు",ar:"عيد ميلاد سعيد",ru:"с днём рождения",ja:"お誕生日おめでとう",zh:"生日快乐"},
+  "congratulations":{es:"felicitaciones",fr:"félicitations",de:"herzlichen glückwunsch",it:"congratulazioni",pt:"parabéns",hi:"बधाई",te:"అభినందనలు",ar:"تهانينا",ru:"поздравляю",ja:"おめでとう",zh:"恭喜"},
+  "good luck":{es:"buena suerte",fr:"bonne chance",de:"viel glück",it:"buona fortuna",pt:"boa sorte",hi:"शुभकामनाएं",te:"శుభకామనలు",ar:"حظ سعيد",ru:"удачи",ja:"頑張って",zh:"祝你好运"},
+  "i am fine":{es:"estoy bien",fr:"je vais bien",de:"mir geht es gut",it:"sto bene",pt:"estou bem",hi:"मैं ठीक हूँ",te:"నేను బాగున్నాను",ar:"أنا بخير",ru:"я в порядке",ja:"元気です",zh:"我很好"},
+  "beautiful":{es:"hermoso",fr:"beau",de:"schön",it:"bello",pt:"lindo",hi:"सुंदर",te:"అందమైన",ar:"جميل",ru:"красивый",ja:"美しい",zh:"美丽"},
+  "big":       {es:"grande",fr:"grand",de:"groß",it:"grande",pt:"grande",hi:"बड़ा",te:"పెద్ద",ar:"كبير",ru:"большой",ja:"大きい",zh:"大"},
+  "small":     {es:"pequeño",fr:"petit",de:"klein",it:"piccolo",pt:"pequeno",hi:"छोटा",te:"చిన్న",ar:"صغير",ru:"маленький",ja:"小さい",zh:"小"},
+  "hot":       {es:"caliente",fr:"chaud",de:"heiß",it:"caldo",pt:"quente",hi:"गर्म",te:"వేడి",ar:"حار",ru:"горячий",ja:"熱い",zh:"热"},
+  "cold":      {es:"frío",fr:"froid",de:"kalt",it:"freddo",pt:"frio",hi:"ठंडा",te:"చల్లని",ar:"بارد",ru:"холодный",ja:"寒い",zh:"冷"},
+  "good":      {es:"bueno",fr:"bon",de:"gut",it:"buono",pt:"bom",hi:"अच्छा",te:"మంచి",ar:"جيد",ru:"хороший",ja:"良い",zh:"好"},
+  "bad":       {es:"malo",fr:"mauvais",de:"schlecht",it:"cattivo",pt:"ruim",hi:"बुरा",te:"చెడు",ar:"سيء",ru:"плохой",ja:"悪い",zh:"坏"},
+  "i":         {es:"yo",fr:"je",de:"ich",it:"io",pt:"eu",hi:"मैं",te:"నేను",ar:"أنا",ru:"я",ja:"私",zh:"我"},
+  "you":       {es:"tú",fr:"vous",de:"sie",it:"tu",pt:"você",hi:"आप",te:"మీరు",ar:"أنت",ru:"вы",ja:"あなた",zh:"你"},
+  "we":        {es:"nosotros",fr:"nous",de:"wir",it:"noi",pt:"nós",hi:"हम",te:"మేము",ar:"نحن",ru:"мы",ja:"私たち",zh:"我们"},
+  "they":      {es:"ellos",fr:"ils",de:"sie",it:"loro",pt:"eles",hi:"वे",te:"వారు",ar:"هم",ru:"они",ja:"彼ら",zh:"他们"},
+  "what":      {es:"qué",fr:"quoi",de:"was",it:"cosa",pt:"o que",hi:"क्या",te:"ఏమి",ar:"ماذا",ru:"что",ja:"何",zh:"什么"},
+  "where":     {es:"dónde",fr:"où",de:"wo",it:"dove",pt:"onde",hi:"कहाँ",te:"ఎక్కడ",ar:"أين",ru:"где",ja:"どこ",zh:"哪里"},
+  "when":      {es:"cuándo",fr:"quand",de:"wann",it:"quando",pt:"quando",hi:"कब",te:"ఎప్పుడు",ar:"متى",ru:"когда",ja:"いつ",zh:"什么时候"},
+  "why":       {es:"por qué",fr:"pourquoi",de:"warum",it:"perché",pt:"por que",hi:"क्यों",te:"ఎందుకు",ar:"لماذا",ru:"почему",ja:"なぜ",zh:"为什么"},
+  "how":       {es:"cómo",fr:"comment",de:"wie",it:"come",pt:"como",hi:"कैसे",te:"ఎలా",ar:"كيف",ru:"как",ja:"どうやって",zh:"怎么"},
+  "i am hungry":{es:"tengo hambre",fr:"j'ai faim",de:"ich habe hunger",it:"ho fame",pt:"estou com fome",hi:"मुझे भूख लगी है",te:"నాకు ఆకలిగా ఉంది",ar:"أنا جائع",ru:"я голоден",ja:"お腹が空いています",zh:"我饿了"},
+  "i am tired": {es:"estoy cansado",fr:"je suis fatigué",de:"ich bin müde",it:"sono stanco",pt:"estou cansado",hi:"मैं थका हुआ हूँ",te:"నాకు అలసిపోయాను",ar:"أنا متعب",ru:"я устал",ja:"疲れています",zh:"我累了"},
+  "let's go":  {es:"vamos",fr:"allons-y",de:"lass uns gehen",it:"andiamo",pt:"vamos",hi:"चलते हैं",te:"వెళ్దాం",ar:"هيا نذهب",ru:"пошли",ja:"行きましょう",zh:"走吧"},
+  "open":      {es:"abrir",fr:"ouvrir",de:"öffnen",it:"aprire",pt:"abrir",hi:"खोलना",te:"తెరవడం",ar:"فتح",ru:"открыть",ja:"開ける",zh:"打开"},
+  "close":     {es:"cerrar",fr:"fermer",de:"schließen",it:"chiudere",pt:"fechar",hi:"बंद करना",te:"మూయడం",ar:"إغلاق",ru:"закрыть",ja:"閉める",zh:"关闭"},
+  "eat":       {es:"comer",fr:"manger",de:"essen",it:"mangiare",pt:"comer",hi:"खाना",te:"తినడం",ar:"أكل",ru:"есть",ja:"食べる",zh:"吃"},
+  "drink":     {es:"beber",fr:"boire",de:"trinken",it:"bere",pt:"beber",hi:"पीना",te:"త్రాగడం",ar:"شرب",ru:"пить",ja:"飲む",zh:"喝"},
+  "sleep":     {es:"dormir",fr:"dormir",de:"schlafen",it:"dormire",pt:"dormir",hi:"सोना",te:"నిద్రపోవడం",ar:"نوم",ru:"спать",ja:"寝る",zh:"睡觉"},
+  "run":       {es:"correr",fr:"courir",de:"laufen",it:"correre",pt:"correr",hi:"दौड़ना",te:"పరిగెత్తడం",ar:"ركض",ru:"бежать",ja:"走る",zh:"跑"},
+  "read":      {es:"leer",fr:"lire",de:"lesen",it:"leggere",pt:"ler",hi:"पढ़ना",te:"చదవడం",ar:"قراءة",ru:"читать",ja:"読む",zh:"读"},
+  "write":     {es:"escribir",fr:"écrire",de:"schreiben",it:"scrivere",pt:"escrever",hi:"लिखना",te:"రాయడం",ar:"كتابة",ru:"писать",ja:"書く",zh:"写"}
+};
+
+// Quick phrases shown in UI
+const QUICK_PHRASES = [
+  "Hello","Good morning","Thank you","Please","How are you?",
+  "I am fine","Goodbye","Sorry","You're welcome","I love you",
+  "Happy birthday","Good luck","I need help","How much?","Let's go"
+];
+
+// ── Build reverse lookup (any lang → en) ────────────────────
+const REVERSE = {}; // "hola:es" → "hello"
+for (const [en, langs] of Object.entries(DICT)) {
+  for (const [lang, word] of Object.entries(langs)) {
+    REVERSE[word.toLowerCase() + ':' + lang] = en;
+  }
+}
+
+// ── Translation engine ───────────────────────────────────────
+function translate(text, src, tgt) {
+  if (!text.trim()) return '';
+  if (src === tgt) return text;
+
+  // Normalize to English first if src isn't English
+  let english = src === 'en' ? text.toLowerCase() : toEnglish(text, src);
+
+  // Then translate English → target
+  if (tgt === 'en') return capitalise(english);
+  return translateFromEnglish(english, tgt);
+}
+
+function toEnglish(text, srcLang) {
+  // Try phrase-level reverse lookup, then word-level
+  const lower = text.trim().toLowerCase();
+  if (REVERSE[lower + ':' + srcLang]) return REVERSE[lower + ':' + srcLang];
+  // Word by word
+  return lower.split(/\s+/).map(w => {
+    const clean = w.replace(/[¿¡?!.,;:]/g, '');
+    return REVERSE[clean + ':' + srcLang] || w;
+  }).join(' ');
+}
+
+function translateFromEnglish(text, tgt) {
+  const sentences = text.split(/(?<=[.!?])\s+|(?<=[.!?])$/);
+  return sentences.map(s => translateSentence(s.trim(), tgt)).filter(Boolean).join(' ');
+}
+
+function translateSentence(sentence, tgt) {
+  if (!sentence) return '';
+  const lower = sentence.toLowerCase().replace(/[¿¡]/g,'').trim();
+
+  // 1. Full phrase match (longest first)
+  const sorted = Object.keys(DICT).sort((a,b)=>b.length-a.length);
+  for (const phrase of sorted) {
+    if (lower.includes(phrase) && DICT[phrase][tgt]) {
+      const replaced = lower.replace(phrase, DICT[phrase][tgt]);
+      // Continue translating remaining words
+      return translateRemainingWords(replaced, phrase, DICT[phrase][tgt], tgt, lower);
+    }
+  }
+
+  // 2. Word-by-word
+  const words = lower.replace(/[?!.,;:]/g,'').split(/\s+/);
+  const translated = words.map(w => {
+    if (DICT[w] && DICT[w][tgt]) return DICT[w][tgt];
+    // Try partial matches
+    for (const [key, vals] of Object.entries(DICT)) {
+      if (w === key && vals[tgt]) return vals[tgt];
+    }
+    return w; // keep original if no translation
+  });
+
+  let result = translated.join(' ');
+  // Re-add punctuation
+  if (sentence.endsWith('?')) result += '?';
+  else if (sentence.endsWith('!')) result += '!';
+  else if (sentence.endsWith('.')) result += '.';
+  return capitalise(result);
+}
+
+function translateRemainingWords(result, origPhrase, translatedPhrase, tgt, lower) {
+  const remaining = lower.replace(origPhrase, '').trim();
+  if (!remaining) return capitalise(translatedPhrase);
+  const extraWords = remaining.split(/\s+/);
+  const extraTrans = extraWords.map(w => {
+    const clean = w.replace(/[?!.,;:]/g,'');
+    return (DICT[clean] && DICT[clean][tgt]) ? DICT[clean][tgt] : clean;
+  });
+  return capitalise(translatedPhrase + ' ' + extraWords.join(' '));
+}
+
+function capitalise(s) {
+  if (!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// ── Multi-sentence handler ───────────────────────────────────
+function translateFull(text, src, tgt) {
+  if (src === tgt) return text;
+  // Split by sentence-ending punctuation
+  const parts = text.split(/([.!?\n]+)/);
+  let result = '';
+  for (let i = 0; i < parts.length; i += 2) {
+    const sentence = (parts[i] || '').trim();
+    const punct    = parts[i+1] || '';
+    if (sentence) {
+      result += translate(sentence, src, tgt) + punct + ' ';
+    }
+  }
+  return result.trim() || translate(text, src, tgt);
+}
+
+// ── DOM Logic ────────────────────────────────────────────────
+const srcEl    = document.getElementById('src');
+const resArea  = document.getElementById('resultArea');
+const srcLang  = document.getElementById('srcLang');
+const tgtLang  = document.getElementById('tgtLang');
+const charEl   = document.getElementById('charCount');
+const statusEl = document.getElementById('status');
+const toast    = document.getElementById('toast');
+let lastResult = '';
+
+// Populate quick phrases
+const phraseGrid = document.getElementById('phraseGrid');
+QUICK_PHRASES.forEach(p => {
+  const btn = document.createElement('button');
+  btn.className = 'phrase-btn';
+  btn.textContent = p;
+  btn.addEventListener('click', () => {
+    srcEl.value = p;
+    charEl.textContent = p.length + ' / 2000';
+    doTranslate();
+  });
+  phraseGrid.appendChild(btn);
+});
+
+srcEl.addEventListener('input', () => {
+  charEl.textContent = srcEl.value.length + ' / 2000';
+});
+
+document.getElementById('swapBtn').addEventListener('click', () => {
+  const sv = srcLang.value, tv = tgtLang.value;
+  srcLang.value = tv; tgtLang.value = sv;
+  if (lastResult) {
+    srcEl.value = lastResult;
+    charEl.textContent = lastResult.length + ' / 2000';
+    doTranslate();
+  }
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  srcEl.value = ''; lastResult = '';
+  charEl.textContent = '0 / 2000';
+  resArea.innerHTML = '<div class="result-placeholder">Translation will appear here…</div>';
+  statusEl.textContent = 'Ready · Ctrl+Enter to translate';
+});
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  if (!lastResult) return;
+  navigator.clipboard.writeText(lastResult).then(() => {
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2000);
+  }).catch(() => {
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = lastResult; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2000);
+  });
+});
+
+document.getElementById('speakBtn').addEventListener('click', () => {
+  if (!lastResult || !window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(lastResult);
+  const langMap = {es:'es-ES',fr:'fr-FR',de:'de-DE',it:'it-IT',pt:'pt-BR',
+                   hi:'hi-IN',ar:'ar-SA',ru:'ru-RU',ja:'ja-JP',zh:'zh-CN',en:'en-US',te:'te-IN'};
+  utt.lang = langMap[tgtLang.value] || 'en-US';
+  speechSynthesis.speak(utt);
+  statusEl.textContent = '🔊 Speaking…';
+});
+
+document.getElementById('transBtn').addEventListener('click', doTranslate);
+srcEl.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') doTranslate();
+});
+
+function doTranslate() {
+  const text = srcEl.value.trim();
+  if (!text) { statusEl.textContent = '⚠ Please enter text'; return; }
+  const src = srcLang.value, tgt = tgtLang.value;
+  statusEl.textContent = 'Translating…';
+  const result = translateFull(text, src, tgt);
+  lastResult = result;
+  resArea.innerHTML = `<div class="result-box">${result.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`;
+  const sname = LANG_NAMES[src], tname = LANG_NAMES[tgt];
+  document.getElementById('dictNote').textContent =
+    `Translated ${sname} → ${tname} · Built-in offline dictionary · ${Object.keys(DICT).length} entries`;
+  statusEl.textContent = `✓ Done · ${sname} → ${tname} · ${new Date().toLocaleTimeString()}`;
+}
+</script>
+</body>
+</html>
