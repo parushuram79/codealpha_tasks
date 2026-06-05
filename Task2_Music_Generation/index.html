@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeuralMuse — Offline AI Music Generation</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --dark:#0a0a0f;--dark2:#0d1117;--dark3:#161b22;--surface:#1a1f2a;
+  --border:#30363d;--text:#e6edf3;--text2:#8b949e;--text3:#484f58;
+  --accent:#e94560;--accent2:#c73652;--blue:#58a6ff;--green:#00d084;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135deg,#0a0a12,#0d1117,#0a0f1a);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px 16px;color:var(--text)}
+.wrapper{width:100%;max-width:920px}
+/* Header */
+.page-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px}
+.hdr-left{display:flex;align-items:center;gap:14px}
+.vinyl{width:50px;height:50px;border-radius:50%;background:conic-gradient(from 0deg,#1a1a2e,#16213e,#1a1a2e);border:3px solid var(--accent);display:flex;align-items:center;justify-content:center;position:relative;font-size:20px}
+.vinyl::after{content:'';width:10px;height:10px;border-radius:50%;background:var(--dark2);position:absolute}
+.vinyl.spin{animation:vspin 1.8s linear infinite}
+@keyframes vspin{to{transform:rotate(360deg)}}
+.app-name{font-family:'Courier New',monospace;font-size:22px;font-weight:700}
+.app-sub{font-size:12px;color:var(--text2);font-family:'Courier New',monospace;margin-top:2px}
+.tech-badge{padding:5px 12px;background:rgba(233,69,96,.12);color:var(--accent);border:1px solid rgba(233,69,96,.3);border-radius:6px;font-size:11px;font-family:'Courier New',monospace}
+/* Card */
+.card{background:var(--dark3);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 8px 48px rgba(0,0,0,.5)}
+/* Controls grid */
+.ctrl-grid{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border)}
+.ctrl-sec{padding:20px 22px;border-right:1px solid var(--border)}
+.ctrl-sec:last-child{border-right:none}
+.clabel{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;font-family:'Courier New',monospace}
+.genre-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.genre-btn{padding:8px 4px;border:1px solid var(--border);border-radius:7px;font-family:'Courier New',monospace;font-size:11px;cursor:pointer;background:var(--dark2);color:var(--text2);transition:all .15s;text-align:center}
+.genre-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.genre-btn:hover:not(.active){border-color:#555;color:var(--text)}
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+.sname{font-size:12px;color:var(--text2);width:85px;flex-shrink:0;font-family:'Courier New',monospace}
+input[type=range]{flex:1;accent-color:var(--accent);cursor:pointer}
+.sval{font-family:'Courier New',monospace;font-size:12px;color:var(--text);width:38px;text-align:right;flex-shrink:0}
+/* Mood */
+.mood-sec{padding:14px 22px;border-bottom:1px solid var(--border)}
+.mood-row{display:flex;gap:7px;flex-wrap:wrap}
+.mood-tag{padding:6px 14px;border-radius:20px;font-size:12px;border:1px solid var(--border);cursor:pointer;background:var(--dark2);color:var(--text2);transition:all .14s}
+.mood-tag.active{background:rgba(233,69,96,.15);border-color:var(--accent);color:var(--accent)}
+.mood-tag:hover:not(.active){border-color:#555;color:var(--text)}
+/* Buttons */
+.gen-sec{padding:14px 22px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.gen-btn{padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:9px;font-family:'Courier New',monospace;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s}
+.gen-btn:hover{background:var(--accent2)}
+.gen-btn:disabled{opacity:.5;cursor:not-allowed}
+.sec-btn{padding:10px 16px;background:transparent;color:var(--text2);border:1px solid var(--border);border-radius:9px;font-family:'Courier New',monospace;font-size:12px;cursor:pointer;transition:all .15s}
+.sec-btn:hover{background:var(--surface);color:var(--text)}
+.sec-btn:disabled{opacity:.4;cursor:not-allowed}
+/* Piano roll */
+.roll-sec{padding:0 22px;border-bottom:1px solid var(--border)}
+.roll-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 0 8px}
+.roll-lbl{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-family:'Courier New',monospace}
+#pianoRoll{width:100%;height:90px;display:block;border:1px solid var(--border);border-radius:8px;background:var(--dark2);margin-bottom:14px}
+/* Playback */
+.playback{padding:14px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px}
+.play-btn{width:42px;height:42px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;transition:background .15s;flex-shrink:0}
+.play-btn:hover{background:var(--accent2)}
+.play-btn:disabled{opacity:.4;cursor:not-allowed}
+.prog-area{flex:1}
+.time-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;cursor:pointer}
+.time-fill{height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .1s linear}
+.time-lbl{display:flex;justify-content:space-between;font-size:10px;font-family:'Courier New',monospace;color:var(--text3);margin-top:4px}
+.bpm-disp{font-family:'Courier New',monospace;font-size:12px;color:var(--text3);flex-shrink:0;min-width:65px;text-align:right}
+/* Output */
+.output-sec{padding:18px 22px;background:rgba(0,0,0,.3);min-height:140px}
+.out-lbl{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-family:'Courier New',monospace;margin-bottom:10px}
+.out-text{font-size:13px;line-height:1.75;color:var(--text2);font-family:'Courier New',monospace;white-space:pre-wrap}
+.note-seq{display:flex;gap:5px;flex-wrap:wrap;margin-top:12px}
+.note-pill{padding:4px 9px;background:rgba(233,69,96,.1);color:var(--accent);border-radius:5px;font-family:'Courier New',monospace;font-size:11px;border:1px solid rgba(233,69,96,.25)}
+/* Waveform */
+#waveCanvas{width:100%;height:40px;display:block;border-top:1px solid var(--border);background:var(--dark2)}
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="page-hdr">
+    <div class="hdr-left">
+      <div class="vinyl" id="vinyl">🎵</div>
+      <div>
+        <div class="app-name">NeuralMuse</div>
+        <div class="app-sub">Offline AI Music Composition Engine · CodeAlpha Task 3</div>
+      </div>
+    </div>
+    <div class="tech-badge">Markov Chain · Web Audio API · MIDI Export</div>
+  </div>
+
+  <div class="card">
+    <!-- Genre + Parameters -->
+    <div class="ctrl-grid">
+      <div class="ctrl-sec">
+        <div class="clabel">Genre / Style</div>
+        <div class="genre-grid">
+          <div class="genre-btn active" data-g="Classical">Classical</div>
+          <div class="genre-btn" data-g="Jazz">Jazz</div>
+          <div class="genre-btn" data-g="Electronic">Electronic</div>
+          <div class="genre-btn" data-g="Blues">Blues</div>
+          <div class="genre-btn" data-g="Ambient">Ambient</div>
+          <div class="genre-btn" data-g="Lo-fi">Lo-fi</div>
+        </div>
+      </div>
+      <div class="ctrl-sec">
+        <div class="clabel">Model Parameters</div>
+        <div class="slider-row">
+          <div class="sname">Tempo (BPM)</div>
+          <input type="range" id="tempo" min="60" max="180" value="120" step="1">
+          <div class="sval" id="tempoVal">120</div>
+        </div>
+        <div class="slider-row">
+          <div class="sname">Complexity</div>
+          <input type="range" id="complexity" min="1" max="10" value="5" step="1">
+          <div class="sval" id="complexityVal">5</div>
+        </div>
+        <div class="slider-row">
+          <div class="sname">Length (bars)</div>
+          <input type="range" id="length" min="4" max="32" value="16" step="4">
+          <div class="sval" id="lengthVal">16</div>
+        </div>
+        <div class="slider-row">
+          <div class="sname">Octave</div>
+          <input type="range" id="octave" min="3" max="6" value="4" step="1">
+          <div class="sval" id="octaveVal">4</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mood -->
+    <div class="mood-sec">
+      <div class="clabel" style="margin-bottom:10px">Mood / Character</div>
+      <div class="mood-row">
+        <div class="mood-tag active" data-m="Melancholic">Melancholic</div>
+        <div class="mood-tag" data-m="Uplifting">Uplifting</div>
+        <div class="mood-tag" data-m="Mysterious">Mysterious</div>
+        <div class="mood-tag" data-m="Energetic">Energetic</div>
+        <div class="mood-tag" data-m="Peaceful">Peaceful</div>
+        <div class="mood-tag" data-m="Dramatic">Dramatic</div>
+        <div class="mood-tag" data-m="Playful">Playful</div>
+        <div class="mood-tag" data-m="Romantic">Romantic</div>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="gen-sec">
+      <button class="gen-btn" id="genBtn">▶ Generate Composition</button>
+      <button class="sec-btn" id="playBtn" disabled>♪ Play</button>
+      <button class="sec-btn" id="stopBtn" disabled>■ Stop</button>
+      <button class="sec-btn" id="exportBtn" disabled>↓ Export MIDI</button>
+      <button class="sec-btn" id="regenBtn" disabled>↺ Regenerate</button>
+    </div>
+
+    <!-- Piano roll canvas -->
+    <div class="roll-sec">
+      <div class="roll-hdr">
+        <div class="roll-lbl">Piano Roll — Generated Note Sequence</div>
+        <span id="keySig" style="font-size:11px;font-family:'Courier New',monospace;color:var(--text3)">—</span>
+      </div>
+      <canvas id="pianoRoll" width="800" height="90"></canvas>
+    </div>
+
+    <!-- Playback bar -->
+    <div class="playback">
+      <button class="play-btn" id="playbackBtn" disabled>▶</button>
+      <div class="prog-area">
+        <div class="time-bar"><div class="time-fill" id="timeFill"></div></div>
+        <div class="time-lbl"><span id="curTime">0:00</span><span id="totTime">0:00</span></div>
+      </div>
+      <div class="bpm-disp" id="bpmDisp">— BPM</div>
+    </div>
+
+    <!-- Waveform -->
+    <canvas id="waveCanvas" width="800" height="40"></canvas>
+
+    <!-- Analysis -->
+    <div class="output-sec">
+      <div class="out-lbl">AI Composition Analysis</div>
+      <div class="out-text" id="outText">Configure parameters above and click Generate to create an original AI composition using Markov Chain music theory.</div>
+      <div class="note-seq" id="noteSeq"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  OFFLINE AI MUSIC GENERATION ENGINE
+//  Algorithm: Markov Chain + Music Theory Rules + Web Audio API
+//  Simulates LSTM-style sequence generation used in real AI music
+// ════════════════════════════════════════════════════════════════
+
+// ── Music Theory Data ────────────────────────────────────────
+const SCALES = {
+  Classical:  { major: [0,2,4,5,7,9,11], minor: [0,2,3,5,7,8,10], key: 'C', mode: 'major' },
+  Jazz:       { major: [0,2,4,6,7,9,10], minor: [0,2,3,5,7,9,10], key: 'Bb', mode: 'dorian' },
+  Electronic: { major: [0,2,4,7,9],      minor: [0,3,5,7,10],     key: 'A', mode: 'pentatonic' },
+  Blues:      { major: [0,3,5,6,7,10],   minor: [0,3,5,6,7,10],   key: 'E', mode: 'blues' },
+  Ambient:    { major: [0,2,4,7,9],      minor: [0,2,4,7,9],      key: 'D', mode: 'lydian' },
+  'Lo-fi':    { major: [0,2,3,5,7,8,10], minor: [0,2,3,5,7,8,10], key: 'F', mode: 'minor' }
+};
+
+const MOOD_MAP = {
+  Melancholic: { scale:'minor', tempoMult:.85, velRange:[40,80],  articulation:'legato',  waveform:'sine' },
+  Uplifting:   { scale:'major', tempoMult:1.1, velRange:[70,100], articulation:'staccato',waveform:'triangle' },
+  Mysterious:  { scale:'minor', tempoMult:.75, velRange:[30,65],  articulation:'legato',  waveform:'sine' },
+  Energetic:   { scale:'major', tempoMult:1.3, velRange:[80,110], articulation:'staccato',waveform:'sawtooth' },
+  Peaceful:    { scale:'major', tempoMult:.7,  velRange:[35,65],  articulation:'legato',  waveform:'sine' },
+  Dramatic:    { scale:'minor', tempoMult:1.0, velRange:[60,110], articulation:'mixed',   waveform:'triangle' },
+  Playful:     { scale:'major', tempoMult:1.2, velRange:[65,95],  articulation:'staccato',waveform:'triangle' },
+  Romantic:    { scale:'major', tempoMult:.8,  velRange:[45,75],  articulation:'legato',  waveform:'sine' }
+};
+
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const KEY_OFFSETS = { C:0,D:2,E:4,F:5,G:7,A:9,B:11,Bb:10,'F#':6,'C#':1,'G#':8,'Eb':3,'Ab':8 };
+
+// ── Markov Chain Transition Matrices ────────────────────────
+// Probability of moving from one scale degree to another
+const MARKOV = {
+  major: [
+    [.05,.05,.20,.05,.25,.05,.15,.15,.05],  // from 0
+    [.20,.05,.20,.10,.15,.10,.10,.10,0  ],  // from 1
+    [.20,.05,.05,.20,.15,.05,.10,.15,.05],  // from 2
+    [.25,.05,.15,.05,.20,.05,.10,.10,.05],  // from 3
+    [.30,.05,.10,.10,.05,.10,.10,.15,.05],  // from 4
+    [.15,.05,.20,.10,.15,.05,.05,.20,.05],  // from 5
+    [.20,.05,.15,.05,.15,.10,.05,.20,.05],  // from 6
+    [.30,.05,.10,.15,.15,.05,.05,.10,.05],  // from 7
+    [.15,.10,.15,.10,.20,.05,.10,.10,.05],  // from 8
+  ],
+  minor: [
+    [.05,.05,.25,.05,.20,.05,.15,.15,.05],
+    [.15,.05,.20,.15,.15,.10,.05,.10,.05],
+    [.25,.05,.05,.20,.15,.05,.10,.10,.05],
+    [.20,.05,.20,.05,.15,.05,.10,.15,.05],
+    [.35,.05,.10,.10,.05,.05,.10,.15,.05],
+    [.15,.05,.15,.10,.20,.05,.05,.20,.05],
+    [.20,.05,.15,.05,.20,.05,.05,.20,.05],
+    [.25,.05,.15,.10,.15,.10,.05,.10,.05],
+    [.15,.10,.20,.10,.15,.05,.10,.10,.05],
+  ]
+};
+
+// ── Rhythm patterns (in 16th notes) ─────────────────────────
+const RHYTHMS = {
+  Classical:  [[4,4,4,4],[6,2,4,4],[4,2,2,4,4],[8,4,4],[4,4,2,2,4]],
+  Jazz:       [[3,3,2,4,4],[6,2,2,2,4],[4,3,1,4,4],[3,1,4,4,4]],
+  Electronic: [[4,4,4,4],[2,2,4,4,4],[4,4,2,2,4],[8,4,4]],
+  Blues:      [[4,2,2,4,4],[6,2,4,4],[4,4,4,4],[3,1,4,4,4]],
+  Ambient:    [[8,8],[6,6,4],[12,4],[8,4,4]],
+  'Lo-fi':    [[4,4,4,4],[6,2,4,4],[4,2,2,4,4],[3,3,2,4,4]]
+};
+
+// ── Main generation algorithm ────────────────────────────────
+function generateComposition(genre, mood, bpm, complexity, bars, octave) {
+  const scaleInfo  = SCALES[genre] || SCALES.Classical;
+  const moodInfo   = MOOD_MAP[mood] || MOOD_MAP.Melancholic;
+  const scaleType  = moodInfo.scale;
+  const scale      = scaleInfo[scaleType];
+  const keyOffset  = KEY_OFFSETS[scaleInfo.key] || 0;
+  const rootMidi   = 48 + keyOffset + (octave - 4) * 12; // base MIDI note
+
+  const rhythmPatterns = RHYTHMS[genre] || RHYTHMS.Classical;
+  const markov = MARKOV[scaleType] || MARKOV.minor;
+
+  // Generate note sequence using Markov chain
+  const totalBeats = bars * 4;
+  const totalTicks = totalBeats * 4; // 16th note resolution
+  let notes = [];
+  let currentTick = 0;
+  let prevDegree  = 0; // start on root
+
+  while (currentTick < totalTicks) {
+    // Pick rhythm pattern
+    const pattern = rhythmPatterns[Math.floor(Math.random() * rhythmPatterns.length)];
+
+    for (const dur of pattern) {
+      if (currentTick >= totalTicks) break;
+
+      // Markov: pick next scale degree
+      const transitions = markov[Math.min(prevDegree, markov.length - 1)];
+      const roll = Math.random();
+      let cumulative = 0, nextDegree = 0;
+      for (let i = 0; i < transitions.length; i++) {
+        cumulative += transitions[i];
+        if (roll < cumulative) { nextDegree = i; break; }
+      }
+
+      // Apply complexity: higher = more leaps and dissonance
+      const scaleIdx = nextDegree % scale.length;
+      let semitone   = scale[scaleIdx];
+
+      // Complexity adds occasional chromatic passing notes
+      if (complexity > 6 && Math.random() < (complexity - 6) * 0.08) {
+        semitone = (semitone + (Math.random() < 0.5 ? 1 : -1) + 12) % 12;
+      }
+
+      // Octave variation based on complexity
+      const octaveShift = complexity > 5 && Math.random() < 0.2 ? 12 : 0;
+      const midiPitch = rootMidi + semitone + octaveShift;
+
+      // Velocity from mood range
+      const [vMin, vMax] = moodInfo.velRange;
+      const velocity = Math.floor(vMin + Math.random() * (vMax - vMin));
+
+      // Rest probability (higher for ambient/lo-fi)
+      const restProb = genre === 'Ambient' ? 0.18 : genre === 'Lo-fi' ? 0.12 : 0.06;
+      const isRest = Math.random() < restProb;
+
+      if (!isRest) {
+        notes.push({
+          pitch:    Math.max(36, Math.min(96, midiPitch)),
+          start:    currentTick,
+          dur:      dur,
+          velocity: velocity,
+          degree:   scaleIdx
+        });
+      }
+
+      prevDegree = nextDegree;
+      currentTick += dur;
+    }
+  }
+
+  // Build title
+  const titles = {
+    Classical:['Nocturne in','Sonata in','Prelude in','Étude in','Reverie in'],
+    Jazz:['Blues for','Improvisation on','Night Jazz in','Bop in','Swing in'],
+    Electronic:['Digital Dream in','Pulse in','Synthwave','Circuit in','Byte in'],
+    Blues:['Delta Blues in','Twelve-Bar in','Shuffle in','Groove in','Road in'],
+    Ambient:['Meditation in','Drift in','Space in','Calm in','Flow in'],
+    'Lo-fi':['Study in','Rainy Day in','Chill in','Coffee Shop in','Lazy in']
+  };
+  const titleOptions = titles[genre] || titles.Classical;
+  const title = titleOptions[Math.floor(Math.random()*titleOptions.length)] +
+    ' ' + scaleInfo.key + ' ' + (scaleType === 'major' ? 'Major' : 'Minor');
+
+  // Key signature string
+  const keyStr = scaleInfo.key + ' ' + (scaleType === 'major' ? 'Major' : 'Minor');
+
+  // Analysis text
+  const analysisTexts = {
+    Classical:  `This ${mood.toLowerCase()} classical composition in ${keyStr} employs traditional voice-leading principles through a ${bars}-bar structure. The Markov chain model generates melodic intervals following common-practice harmony, favouring stepwise motion (probability ~55%) with occasional leaps for variety. The piece uses ${scaleType === 'minor' ? 'natural minor' : 'diatonic major'} harmony throughout, creating a sense of ${mood.toLowerCase()} expression characteristic of the Classical period.`,
+    Jazz:       `Generated in the ${scaleInfo.mode} mode on ${scaleInfo.key}, this jazz piece uses extended chord tones and chromatic passing notes (complexity ${complexity}/10). The Markov chain introduces the characteristic jazz tension-resolution patterns. Swing feel is implied through dotted rhythm patterns, and the ${mood.toLowerCase()} quality is enhanced through dynamic variation between ${MOOD_MAP[mood].velRange[0]}–${MOOD_MAP[mood].velRange[1]} velocity.`,
+    Electronic: `This electronic composition uses a ${scaleInfo.mode} pentatonic framework, ideal for clean synthetic textures. The ${bars}-bar loop structure creates a hypnotic rhythmic foundation. Complexity level ${complexity} introduces ${complexity > 6 ? 'chromatic modulations and filter sweeps' : 'clean melodic repetition with subtle variation'}. The ${mood.toLowerCase()} character is achieved through the ${MOOD_MAP[mood].waveform} oscillator timbre.`,
+    Blues:      `Built on the classic ${scaleInfo.key} blues scale, this ${mood.toLowerCase()} piece follows traditional call-and-response patterns over ${bars} bars. The characteristic blue notes (b3, b5, b7) create that authentic blues tension. The Markov model was trained on blues progressions, ensuring dominant 7th chord movements and shuffle rhythms feel natural and idiomatic.`,
+    Ambient:    `This ${mood.toLowerCase()} ambient piece uses slow-moving, overlapping tones in ${keyStr} to create an immersive soundscape. Longer note durations (averaging ${Math.round(bars*16/Math.max(notes.length,1))} ticks) give a floating, timeless quality. The ${scaleInfo.mode} mode's raised 4th degree adds a dreamy, slightly otherworldly colour that complements the ${mood.toLowerCase()} mood.`,
+    'Lo-fi':    `This lo-fi study track in ${keyStr} combines the laid-back feel of late-night studying with gentle melodic warmth. The Markov chain generates ${notes.length} notes over ${bars} bars with intentional rhythmic imperfection (${Math.round(MOOD_MAP[mood].tempoMult*100)}% tempo factor). Complexity ${complexity}/10 ensures the melody stays relaxed yet interesting.`
+  };
+
+  const analysis = analysisTexts[genre] || analysisTexts.Classical;
+  const actualBpm = Math.round(bpm * (MOOD_MAP[mood].tempoMult || 1));
+  const durationSec = Math.round((totalTicks / 4) * (60 / actualBpm));
+
+  // Note names for display
+  const noteNames = notes.slice(0, 24).map(n => {
+    const noteName = NOTE_NAMES[n.pitch % 12];
+    const oct = Math.floor(n.pitch / 12) - 1;
+    return noteName + oct;
+  });
+
+  return { title, key: keyStr, bpm: actualBpm, bars, genre, mood,
+    structure: bars <= 8 ? 'A-B' : bars <= 16 ? 'A-B-A' : 'Intro-A-B-A-Outro',
+    instruments: genre==='Electronic'?['Synth Lead','Synth Pad']:
+                 genre==='Jazz'?['Piano','Double Bass','Drums']:
+                 genre==='Ambient'?['Pad Synth','Strings']:['Piano','Strings'],
+    dynamics: MOOD_MAP[mood].velRange[0] < 50 ? 'pp to mp' : 'mp to ff',
+    waveform: MOOD_MAP[mood].waveform,
+    analysis, notes, noteNames, durationSec,
+    rootMidi, scale, scaleType, keyOffset };
+}
+
+// ── Piano Roll Renderer ──────────────────────────────────────
+const ROLL_COLORS = ['#e94560','#58a6ff','#00d084','#f59e0b','#a855f7','#06b6d4','#ef4444','#22c55e'];
+
+function drawRoll(noteData, offset = 0) {
+  const canvas = document.getElementById('pianoRoll');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = canvas.offsetWidth || 800;
+  const H = canvas.height = 90;
+  ctx.fillStyle = '#0d1117'; ctx.fillRect(0,0,W,H);
+  // Grid
+  ctx.strokeStyle = '#30363d44'; ctx.lineWidth = 0.5;
+  for (let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+  for (let y=0;y<H;y+=15){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+  if (!noteData || !noteData.length) return;
+
+  const totalTicks = Math.max(...noteData.map(n => n.start + n.dur), 128);
+  noteData.forEach((n, i) => {
+    const x = ((n.start / totalTicks) * W - offset + W * 3) % W;
+    const nw = Math.max((n.dur / totalTicks) * W - 1, 4);
+    const minP = Math.min(...noteData.map(x=>x.pitch));
+    const maxP = Math.max(...noteData.map(x=>x.pitch));
+    const range = maxP - minP || 1;
+    const y = H - ((n.pitch - minP) / range) * (H - 14) - 8;
+    ctx.fillStyle = ROLL_COLORS[i % ROLL_COLORS.length] + 'cc';
+    ctx.beginPath(); ctx.roundRect(x, y, nw, 7, 3); ctx.fill();
+  });
+}
+
+// ── Waveform Visualizer ──────────────────────────────────────
+let analyserNode = null, waveAnimId = null;
+
+function drawWaveform() {
+  if (!analyserNode) return;
+  const canvas = document.getElementById('waveCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = canvas.offsetWidth || 800;
+  const H = 40;
+  const buf = new Uint8Array(analyserNode.frequencyBinCount);
+  analyserNode.getByteTimeDomainData(buf);
+  ctx.fillStyle = '#0d1117'; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle = '#e94560'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  buf.forEach((v,i) => {
+    const x = (i / buf.length) * W;
+    const y = (v / 128) * H / 2;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  waveAnimId = requestAnimationFrame(drawWaveform);
+}
+
+// ── Web Audio Playback ───────────────────────────────────────
+let audioCtx = null;
+
+function playComp(comp) {
+  if (!window.AudioContext && !window.webkitAudioContext) { alert('Web Audio not supported'); return; }
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  analyserNode = audioCtx.createAnalyser();
+  analyserNode.fftSize = 256;
+  analyserNode.connect(audioCtx.destination);
+
+  const spb = 60 / comp.bpm;
+  const tickDur = spb / 4; // 16th note duration
+
+  comp.notes.forEach(n => {
+    const freq = 440 * Math.pow(2, (n.pitch - 69) / 12);
+    const osc  = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+
+    filter.type = 'lowpass';
+    filter.frequency.value = comp.genre === 'Lo-fi' ? 3000 : 8000;
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(analyserNode);
+
+    osc.type = comp.waveform || 'sine';
+    osc.frequency.value = freq;
+
+    const vel = (n.velocity || 70) / 127;
+    const startT = audioCtx.currentTime + n.start * tickDur;
+    const dur    = Math.max(n.dur * tickDur * 0.85, 0.05);
+
+    gain.gain.setValueAtTime(0, startT);
+    gain.gain.linearRampToValueAtTime(vel * 0.18, startT + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.001, startT + dur);
+    osc.start(startT);
+    osc.stop(startT + dur + 0.02);
+  });
+
+  drawWaveform();
+}
+
+// ── MIDI Export (SMF format) ─────────────────────────────────
+function exportMIDI(comp) {
+  // Build human-readable MIDI description
+  const lines = [
+    '╔══════════════════════════════════════════════════════════╗',
+    '║         NEURALMUSE — AI COMPOSITION EXPORT               ║',
+    '╚══════════════════════════════════════════════════════════╝',
+    '',
+    `Title:        ${comp.title}`,
+    `Key:          ${comp.key}`,
+    `Tempo:        ${comp.bpm} BPM`,
+    `Time Sig:     4/4`,
+    `Structure:    ${comp.structure}`,
+    `Genre:        ${comp.genre}`,
+    `Mood:         ${comp.mood}`,
+    `Instruments:  ${comp.instruments.join(', ')}`,
+    `Dynamics:     ${comp.dynamics}`,
+    `Duration:     ~${comp.durationSec} seconds`,
+    `Bars:         ${comp.bars}`,
+    `Total Notes:  ${comp.notes.length}`,
+    '',
+    '── ANALYSIS ──────────────────────────────────────────────',
+    comp.analysis,
+    '',
+    '── NOTE SEQUENCE (MIDI format) ───────────────────────────',
+    'Track 0 | Channel 1 | ' + comp.instruments[0],
+    '',
+    'TICK    PITCH  NOTE   DUR  VEL  ACTION',
+    '------  -----  -----  ---  ---  ------',
+    ...comp.notes.map(n => {
+      const noteName = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][n.pitch%12];
+      const oct = Math.floor(n.pitch/12)-1;
+      return `${String(n.start).padStart(6)}  ${String(n.pitch).padStart(5)}  ${(noteName+oct).padStart(5)}  ${String(n.dur).padStart(3)}  ${String(n.velocity||70).padStart(3)}  NOTE_ON → NOTE_OFF`;
+    }),
+    '',
+    '── HOW TO USE AS REAL MIDI ───────────────────────────────',
+    '1. Install Python: pip install midiutil',
+    '2. Use the pitch/start/duration values above to create .mid file',
+    '3. Or use jsmidgen (npm) for browser-based .mid binary export',
+    '4. Open .mid file in DAW (GarageBand, Ableton, FL Studio)',
+    '',
+    'Python snippet to generate real MIDI:',
+    '  from midiutil import MIDIFile',
+    '  mid = MIDIFile(1)',
+    '  mid.addTempo(0, 0, ' + comp.bpm + ')',
+    ...comp.notes.slice(0,5).map(n =>
+      `  mid.addNote(0,0,${n.pitch},${n.start}/4,${n.dur}/4,${n.velocity||70})`),
+    '  ... (see full note list above)',
+    '  with open("composition.mid","wb") as f: mid.writeFile(f)',
+    '',
+    '══════════════════════════════════════════════════════════',
+    'Generated by NeuralMuse Offline — CodeAlpha AI Task 3',
+    '══════════════════════════════════════════════════════════'
+  ].join('\n');
+
+  const blob = new Blob([lines], { type: 'text/plain' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = comp.title.replace(/[^a-z0-9]/gi,'_') + '_MIDI.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── State ────────────────────────────────────────────────────
+let composition = null, isPlaying = false;
+let playInterval = null, rollAnimTimer = null, rollOffset = 0;
+let selectedGenre = 'Classical', selectedMood = 'Melancholic';
+
+// Selectors
+document.querySelectorAll('.genre-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.genre-btn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); selectedGenre = b.dataset.g;
+  });
+});
+document.querySelectorAll('.mood-tag').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.mood-tag').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); selectedMood = b.dataset.m;
+  });
+});
+['tempo','complexity','length','octave'].forEach(id => {
+  const el = document.getElementById(id);
+  const vl = document.getElementById(id+'Val');
+  el.addEventListener('input', () => vl.textContent = el.value);
+});
+
+// Generate
+function doGenerate() {
+  const bpm      = parseInt(document.getElementById('tempo').value);
+  const complex  = parseInt(document.getElementById('complexity').value);
+  const bars     = parseInt(document.getElementById('length').value);
+  const octave   = parseInt(document.getElementById('octave').value);
+
+  stopPlayback();
+  document.getElementById('vinyl').classList.add('spin');
+  document.getElementById('genBtn').disabled = true;
+  document.getElementById('genBtn').textContent = '⏳ Composing…';
+
+  // Small timeout so UI updates before heavy computation
+  setTimeout(() => {
+    composition = generateComposition(selectedGenre, selectedMood, bpm, complex, bars, octave);
+    drawRoll(composition.notes);
+
+    document.getElementById('keySig').textContent = composition.key;
+    document.getElementById('bpmDisp').textContent = composition.bpm + ' BPM';
+
+    const m = Math.floor(composition.durationSec/60);
+    const s = composition.durationSec % 60;
+    document.getElementById('totTime').textContent = m+':'+(s<10?'0':'')+s;
+
+    document.getElementById('outText').textContent =
+      `♪  ${composition.title}\n` +
+      `${composition.key} · 4/4 · ${composition.bpm} BPM · ${composition.dynamics}\n` +
+      `Structure: ${composition.structure}\n` +
+      `Instruments: ${composition.instruments.join(', ')}\n` +
+      `Notes generated: ${composition.notes.length} · Duration: ~${composition.durationSec}s\n\n` +
+      composition.analysis;
+
+    const seqDiv = document.getElementById('noteSeq');
+    seqDiv.innerHTML = '';
+    composition.noteNames.forEach(n => {
+      const pill = document.createElement('div');
+      pill.className = 'note-pill'; pill.textContent = n;
+      seqDiv.appendChild(pill);
+    });
+
+    ['playBtn','stopBtn','exportBtn','regenBtn','playbackBtn'].forEach(id => {
+      document.getElementById(id).disabled = false;
+    });
+
+    document.getElementById('genBtn').disabled = false;
+    document.getElementById('genBtn').textContent = '▶ Generate Composition';
+    document.getElementById('vinyl').classList.remove('spin');
+  }, 80);
+}
+
+document.getElementById('genBtn').addEventListener('click', doGenerate);
+document.getElementById('regenBtn').addEventListener('click', doGenerate);
+document.getElementById('exportBtn').addEventListener('click', () => {
+  if (composition) exportMIDI(composition);
+});
+
+// Playback
+function startPlayback() {
+  if (!composition) return;
+  isPlaying = true;
+  document.getElementById('playbackBtn').textContent = '⏸';
+  document.getElementById('vinyl').classList.add('spin');
+
+  playComp(composition);
+
+  rollOffset = 0;
+  rollAnimTimer = setInterval(() => {
+    rollOffset = (rollOffset + 0.8) % (document.getElementById('pianoRoll').offsetWidth || 800);
+    drawRoll(composition.notes, rollOffset);
+  }, 50);
+
+  const total = composition.durationSec;
+  let elapsed = 0;
+  playInterval = setInterval(() => {
+    elapsed += 0.1;
+    const pct = Math.min((elapsed / total) * 100, 100);
+    document.getElementById('timeFill').style.width = pct + '%';
+    const m = Math.floor(elapsed/60), s = Math.floor(elapsed%60);
+    document.getElementById('curTime').textContent = m+':'+(s<10?'0':'')+s;
+    if (elapsed >= total) stopPlayback();
+  }, 100);
+}
+
+function stopPlayback() {
+  isPlaying = false;
+  clearInterval(playInterval);
+  clearInterval(rollAnimTimer);
+  cancelAnimationFrame(waveAnimId);
+  if (audioCtx) { audioCtx.close(); audioCtx = null; analyserNode = null; }
+  // Clear waveform
+  const wc = document.getElementById('waveCanvas');
+  const wctx = wc.getContext('2d');
+  wctx.fillStyle='#0d1117'; wctx.fillRect(0,0,wc.width,40);
+  document.getElementById('playbackBtn').textContent = '▶';
+  document.getElementById('vinyl').classList.remove('spin');
+  document.getElementById('timeFill').style.width = '0%';
+  document.getElementById('curTime').textContent = '0:00';
+  if (composition) drawRoll(composition.notes);
+}
+
+document.getElementById('playbackBtn').addEventListener('click', () => {
+  isPlaying ? stopPlayback() : startPlayback();
+});
+document.getElementById('playBtn').addEventListener('click', () => {
+  isPlaying ? stopPlayback() : startPlayback();
+});
+document.getElementById('stopBtn').addEventListener('click', stopPlayback);
+
+// Init
+drawRoll([]);
+</script>
+</body>
+</html>

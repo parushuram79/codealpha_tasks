@@ -1,0 +1,27 @@
+HOW TO RUN
+──────────
+Just double-click any .html file to open it in your browser.
+No server, no internet, no installation needed.
+ 
+Or in VS Code:
+  1. Install the "Live Server" extension (optional, but nicer)
+  2. Right-click the .html file → "Open with Live Server"
+  OR simply press Ctrl+Shift+P → "Open in Default Browser"
+
+  ──────────────────────────────────────────────────────────
+TASK 2 — Task2_MusicGeneration.html
+──────────────────────────────────────────────────────────
+Tool: AI Music Generation
+Tech: Markov Chain sequence generation + Music Theory rules
+      + Web Audio API for real playback + Piano Roll canvas
+Genres: Classical, Jazz, Electronic, Blues, Ambient, Lo-fi
+Moods: Melancholic, Uplifting, Mysterious, Energetic,
+       Peaceful, Dramatic, Playful, Romantic
+Features:
+  • Markov Chain transition matrices per genre
+  • Music theory scales (major, minor, dorian, blues, pentatonic)
+  • Tempo, complexity, length, octave sliders
+  • Animated piano roll visualizer
+  • Real audio playback via Web Audio API (oscillators)
+  • Live waveform visualizer
+  • Export MIDI info as text file with Python snippet

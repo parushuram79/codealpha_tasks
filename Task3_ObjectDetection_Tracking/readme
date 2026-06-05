@@ -1,0 +1,25 @@
+HOW TO RUN
+──────────
+Just double-click any .html file to open it in your browser.
+No server, no internet, no installation needed.
+ 
+Or in VS Code:
+  1. Install the "Live Server" extension (optional, but nicer)
+  2. Right-click the .html file → "Open with Live Server"
+  OR simply press Ctrl+Shift+P → "Open in Default Browser"
+  ──────────────────────────────────────────────────────────
+TASK 4 — Task3_ObjectDetection.html
+──────────────────────────────────────────────────────────
+Tool: Object Detection & Tracking
+Tech: Simulated YOLO detector + SORT tracker + Kalman Filter
+      + IoU-based Hungarian association + canvas rendering
+Features:
+  • 7 scene presets (Street, Office, Park, Traffic, etc.)
+  • SORT tracking algorithm with Kalman Filter prediction
+  • DeepSORT-style trajectory trails
+  • Bounding boxes with corner marks + confidence bars
+  • Upload your own image for detection
+  • Per-object tracking ID, confidence, coordinates
+  • Real-time FPS counter, system log
+  • Configurable confidence & IoU thresholds
+  • Start / Pause / Stop / Clear controls
